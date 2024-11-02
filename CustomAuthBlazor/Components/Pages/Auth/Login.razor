@@ -1,0 +1,54 @@
+﻿@page "/auth/login"
+@using CustomAuthBlazor.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@inject NavigationManager NavigationManager
+<h3>Login</h3>
+<div class="col-sm-5 mx-auto">
+    <EditForm Model="Model" FormName="login-form" method="Post" OnValidSubmit="LoginUserAsync">
+        <DataAnnotationsValidator/>
+        <div class="mb-3">
+            <label>User Name</label>
+            <InputText @bind-Value="Model.Email" class="form-control"/>
+            <ValidationMessage For="()=>Model.Email"/>
+        </div>
+        <div class="mb-3">
+            <label>Password</label>
+            <InputText typeof="password" @bind-Value="Model.Password" class="form-control" />
+            <ValidationMessage For="()=>Model.Password" />
+        </div>
+        <div class="mb-3">
+            
+            <InputCheckbox @bind-Value="Model.RememberMe" class="form-check-input" />
+            <label>Remember Me?</label>
+        </div>
+        <div class="mb-3">
+           <button type="submit" class="btn btn-primary btn-sm">Login</button>
+        </div>
+    </EditForm>
+</div>
+@code {
+    [SupplyParameterFromForm(FormName ="login-form")]
+    private LoginModel Model { get; set; } = new();
+    [CascadingParameter]
+    public HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    public string ReturnUrl { get; set; } = "/";
+
+    private async Task LoginUserAsync()
+    {
+        //validate Model
+        await Task.Delay(2000);
+        LoggedInUserModel user = new LoggedInUserModel(1, "Siam", "siam@gmail.com");
+        var claims = user.ToClaims();
+        var identity = new ClaimsIdentity(claims,Constants.AuthScheme);
+        var principal = new ClaimsPrincipal(identity);
+        var authProperties = new AuthenticationProperties
+        {
+            IsPersistent=Model.RememberMe    
+        };
+        await HttpContext.SignInAsync(Constants.AuthScheme, principal, authProperties);
+        NavigationManager.NavigateTo(ReturnUrl);
+    }
+}
