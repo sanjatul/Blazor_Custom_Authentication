@@ -1,54 +1,168 @@
-﻿@page "/auth/login"
+﻿@* @page "/auth/login"
 @using CustomAuthBlazor.Models
 @using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using CustomAuthBlazor.Service.Interface
 @using Microsoft.AspNetCore.Authentication
 @inject NavigationManager NavigationManager
-<h3>Login</h3>
-<div class="col-sm-5 mx-auto">
-    <EditForm Model="Model" FormName="login-form" method="Post" OnValidSubmit="LoginUserAsync">
-        <DataAnnotationsValidator/>
-        <div class="mb-3">
-            <label>User Name</label>
-            <InputText @bind-Value="Model.Email" class="form-control"/>
-            <ValidationMessage For="()=>Model.Email"/>
-        </div>
-        <div class="mb-3">
-            <label>Password</label>
-            <InputText typeof="password" @bind-Value="Model.Password" class="form-control" />
-            <ValidationMessage For="()=>Model.Password" />
-        </div>
-        <div class="mb-3">
-            
-            <InputCheckbox @bind-Value="Model.RememberMe" class="form-check-input" />
-            <label>Remember Me?</label>
-        </div>
-        <div class="mb-3">
-           <button type="submit" class="btn btn-primary btn-sm">Login</button>
-        </div>
-    </EditForm>
-</div>
+@using System.ComponentModel.DataAnnotations
+@inject IAuthService _authService; 
+
+<EditForm Model="@Model" OnValidSubmit="LoginUserAsync">
+    <DataAnnotationsValidator />
+    <MudGrid>
+        <MudItem xs="12" sm="7">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Color="@Color.Error"></MudText>
+                    <MudTextField Label="Email" HelperText="Enter your email"
+                                  @bind-Value="Model.Email" />
+                    <MudTextField Label="Password" HelperText="Enter your password" Class="mt-3"
+                                  @bind-Value="Model.Password" InputType="InputType.Password" />
+                    <MudCheckBox @bind-Value="Model.RememberMe" Label="Remember Me?"></MudCheckBox>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Login</MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</EditForm>
+
+
 @code {
-    [SupplyParameterFromForm(FormName ="login-form")]
-    private LoginModel Model { get; set; } = new();
+    //[SupplyParameterFromForm(FormName ="login-form")]
+   // private LoginModel Model { get; set; } = new LoginModel();
+    private LoginModel Model { get; set; }
     [CascadingParameter]
     public HttpContext HttpContext { get; set; } = default!;
 
     [SupplyParameterFromQuery]
     public string ReturnUrl { get; set; } = "/";
 
+    protected override void OnInitialized()
+    {
+        Model = new LoginModel(); // Initialize the model here
+    }
+
     private async Task LoginUserAsync()
     {
-        //validate Model
-        await Task.Delay(2000);
-        LoggedInUserModel user = new LoggedInUserModel(1, "Siam", "siam@gmail.com");
-        var claims = user.ToClaims();
-        var identity = new ClaimsIdentity(claims,Constants.AuthScheme);
-        var principal = new ClaimsPrincipal(identity);
-        var authProperties = new AuthenticationProperties
+        if (Model != null)
         {
-            IsPersistent=Model.RememberMe    
-        };
-        await HttpContext.SignInAsync(Constants.AuthScheme, principal, authProperties);
-        NavigationManager.NavigateTo(ReturnUrl);
+            var user=await _authService.GetUserDetails(Model);
+            
+          
+            if (user != null)
+            {
+                var claims = ToClaims(user);
+                var identity = new ClaimsIdentity(claims, Constants.AuthScheme);
+                var principal = new ClaimsPrincipal(identity);
+                var authProperties = new AuthenticationProperties
+                    {
+                        IsPersistent = Model.RememberMe
+                    };
+              await HttpContext.SignInAsync(Constants.AuthScheme, principal, authProperties);
+                //await AuthenticationStateProvider.SignInAsync(Constants.AuthScheme, principal, authProperties);
+              NavigationManager.NavigateTo(ReturnUrl);
+            }
+        }
+        else
+        {
+            Model = new();
+        }
+       
     }
+    private IEnumerable<Claim> ToClaims(UserDetails details)
+    {
+        // Create a list of claims from the UserDetails properties
+        var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, details.FullName),
+                new Claim("Designation", details.Designation),
+                new Claim("Salary", details.Salary.ToString()),
+            };
+
+        return claims;
+    }
+}
+ *@
+
+@page "/auth/login"
+@using System.Text.RegularExpressions
+@using System.ComponentModel.DataAnnotations
+
+<MudGrid>
+    <MudItem xs="12" sm="7">
+        <MudPaper Class="pa-4">
+            <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
+                <MudTextField T="string" Label="Username" Required="true" RequiredError="User name is required!" />
+                <MudTextField T="string" Label="Email" Required="true" RequiredError="Email is required!"
+                              Validation="@(new EmailAddressAttribute() {ErrorMessage = "The email address is invalid"})" />
+                <MudTextField T="string" Label="Password" HelperText="Choose a strong password" @ref="pwField1"
+                              InputType="InputType.Password"
+                              Validation="@(new Func<string, IEnumerable<string>>(PasswordStrength))" Required="true"
+                              RequiredError="Password is required!" />
+                <MudTextField T="string"
+                              Label="Password" HelperText="Repeat the password" InputType="InputType.Password"
+                              Validation="@(new Func<string, string>(PasswordMatch))" />
+                <div class="d-flex">
+                    <MudRadioGroup T="string" Required="true" RequiredError="Account type is required!">
+                        <MudRadio Value="@("Personal")">Personal</MudRadio>
+                        <MudRadio Value="@("Professional")">Professional</MudRadio>
+                    </MudRadioGroup>
+                </div>
+                <div class="d-flex align-center justify-space-between">
+                    <MudCheckBox T="bool" Required="true" RequiredError="You must agree" Label="I agree!" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!success)" Class="ml-auto">Register</MudButton>
+                </div>
+            </MudForm>
+        </MudPaper>
+        <MudPaper Class="pa-4 mt-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" OnClick="@(()=>form.Validate())">Validate</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" DropShadow="false" OnClick="@(()=>form.ResetAsync())" Class="mx-2">Reset</MudButton>
+            <MudButton Variant="Variant.Filled" DropShadow="false" OnClick="@(()=>form.ResetValidation())">Reset Validation</MudButton>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="5">
+        <MudPaper Class="pa-4 mud-height-full">
+            <MudText Typo="Typo.subtitle2">@($"Errors ({errors.Length})")</MudText>
+            @foreach (var error in errors)
+            {
+                <MudText Color="@Color.Error">@error</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+
+@code {
+    bool success;
+    string[] errors = { };
+    MudTextField<string> pwField1;
+    MudForm form;
+
+    private IEnumerable<string> PasswordStrength(string pw)
+    {
+        if (string.IsNullOrWhiteSpace(pw))
+        {
+            yield return "Password is required!";
+            yield break;
+        }
+        if (pw.Length < 8)
+            yield return "Password must be at least of length 8";
+        if (!Regex.IsMatch(pw, @"[A-Z]"))
+            yield return "Password must contain at least one capital letter";
+        if (!Regex.IsMatch(pw, @"[a-z]"))
+            yield return "Password must contain at least one lowercase letter";
+        if (!Regex.IsMatch(pw, @"[0-9]"))
+            yield return "Password must contain at least one digit";
+    }
+
+    private string PasswordMatch(string arg)
+    {
+        if (pwField1.Value != arg)
+            return "Passwords don't match";
+        return null;
+    }
+
 }

@@ -1,6 +1,9 @@
 using CustomAuthBlazor;
 using CustomAuthBlazor.Components;
+using CustomAuthBlazor.Service;
+using CustomAuthBlazor.Service.Interface;
 using Microsoft.AspNetCore.Identity;
+using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,7 +32,12 @@ builder.Services.AddAuthentication()
 
 builder.Services.AddCascadingAuthenticationState();
 
+//Adding Mud Blazor
+builder.Services.AddMudServices();
 
+//DbConfig
+builder.Services.AddTransient<IAuthService,AuthService>();
+builder.Services.AddHttpContextAccessor();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
