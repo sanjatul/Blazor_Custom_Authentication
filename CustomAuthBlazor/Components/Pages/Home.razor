@@ -1,7 +1,13 @@
 ﻿@page "/"
-
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@attribute [Authorize]
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+<AuthorizeView>
+    <Authorized>
+        <h1>Hello @context.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value</h1>
+        <h2>Your Designation: @context.User.Claims.FirstOrDefault(c => c.Type == "Designation")?.Value</h2>
+        <h2>Your Salary: @context.User.Claims.FirstOrDefault(c => c.Type == "Salary")?.Value</h2>
+    </Authorized>
+</AuthorizeView>
