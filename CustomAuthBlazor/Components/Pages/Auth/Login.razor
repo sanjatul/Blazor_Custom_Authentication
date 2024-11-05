@@ -36,23 +36,7 @@
     public HttpContext HttpContext { get; set; } = default!;
     [SupplyParameterFromQuery]
     public string ReturnUrl { get; set; } = "/";
-    // private async Task LoginUserAsync()
-    // {
-    //     //validate Model
-    //     await Task.Delay(2000);
-    //     LoggedInUserModel user = new LoggedInUserModel(1, "Siam", "siam@gmail.com");
-    //     var claims = user.ToClaims();
-    //     var identity = new ClaimsIdentity(claims, Constants.AuthScheme);
-    //     var principal = new ClaimsPrincipal(identity);
-    //     var authProperties = new AuthenticationProperties
-    //         {
-    //             IsPersistent = Model.RememberMe
-    //         };
-    //     await HttpContext.SignInAsync(Constants.AuthScheme, principal, authProperties);
-    //     NavigationManager.NavigateTo(ReturnUrl);
-    // }
-
-
+   
     private async Task LoginUserAsync()
     {
         if (Model != null)
@@ -71,6 +55,10 @@
                     };
                 await HttpContext.SignInAsync(Constants.AuthScheme, principal, authProperties);
                 NavigationManager.NavigateTo(ReturnUrl);
+            }
+            else
+            {
+                Model = new();
             }
         }
         else
