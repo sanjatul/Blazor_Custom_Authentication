@@ -3,10 +3,18 @@
 @using System.Security.Claims
 @using CustomAuthBlazor.Service.Interface
 @using Microsoft.AspNetCore.Authentication
-@inject IAuthService _authService;
+@inject IJSRuntime _JSRuntime
+@inject IAuthService _authService
 @inject NavigationManager NavigationManager
+
 <h3>Login</h3>
 <div class="col-sm-5 mx-auto">
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @_errorMessage
+        </div>
+    }
     <EditForm Model="Model" FormName="login-form" method="Post" OnValidSubmit="LoginUserAsync">
         <DataAnnotationsValidator />
         <div class="mb-3">
@@ -16,11 +24,10 @@
         </div>
         <div class="mb-3">
             <label>Password</label>
-            <InputText typeof="password" @bind-Value="Model.Password" class="form-control" />
+            <InputText type="password" @bind-Value="Model.Password" class="form-control" />
             <ValidationMessage For="()=>Model.Password" />
         </div>
         <div class="mb-3">
-
             <InputCheckbox @bind-Value="Model.RememberMe" class="form-check-input" />
             <label>Remember Me?</label>
         </div>
@@ -29,6 +36,7 @@
         </div>
     </EditForm>
 </div>
+
 @code {
     [SupplyParameterFromForm(FormName = "login-form")]
     private LoginModel Model { get; set; } = new();
@@ -36,49 +44,40 @@
     public HttpContext HttpContext { get; set; } = default!;
     [SupplyParameterFromQuery]
     public string ReturnUrl { get; set; } = "/";
-   
+    private bool _loginSuccessful;
+    private string? _errorMessage;
+
     private async Task LoginUserAsync()
     {
-        if (Model != null)
+        var user = await _authService.GetUserDetails(Model);
+        if (user != null)
         {
-            var user = await _authService.GetUserDetails(Model);
-
-
-            if (user != null)
-            {
-                var claims = ToClaims(user);
-                var identity = new ClaimsIdentity(claims, Constants.AuthScheme);
-                var principal = new ClaimsPrincipal(identity);
-                var authProperties = new AuthenticationProperties
-                    {
-                        IsPersistent = Model.RememberMe
-                    };
-                await HttpContext.SignInAsync(Constants.AuthScheme, principal, authProperties);
-                NavigationManager.NavigateTo(ReturnUrl);
-            }
-            else
-            {
-                Model = new();
-            }
+            var claims = ToClaims(user);
+            var identity = new ClaimsIdentity(claims, Constants.AuthScheme);
+            var principal = new ClaimsPrincipal(identity);
+            var authProperties = new AuthenticationProperties
+                {
+                    IsPersistent = Model.RememberMe
+                };
+            await HttpContext.SignInAsync(Constants.AuthScheme, principal, authProperties);
+            NavigationManager.NavigateTo(ReturnUrl);
         }
         else
         {
+            _errorMessage = "Invalid username or password. Please try again.";
             Model = new();
         }
-
     }
 
     private IEnumerable<Claim> ToClaims(UserDetails details)
     {
         // Create a list of claims from the UserDetails properties
         var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, details.FullName),
-                new Claim("Designation", details.Designation),
-                new Claim("Salary", details.Salary.ToString()),
-            };
+        {
+            new Claim(ClaimTypes.Name, details.FullName),
+            new Claim("Designation", details.Designation),
+            new Claim("Salary", details.Salary.ToString()),
+        };
         return claims;
     }
-
-
 }
